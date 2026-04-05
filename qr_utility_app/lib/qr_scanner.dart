@@ -12,6 +12,7 @@ class QRScannerPage extends StatefulWidget {
 
 class _QRScannerPageState extends State<QRScannerPage>
     with WidgetsBindingObserver {
+  // 1. Initialize controller with updated settings
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
@@ -36,7 +37,9 @@ class _QRScannerPageState extends State<QRScannerPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 2. Fixed: Access isInitialized through .value in version 7.x
     if (!_controller.value.isInitialized) return;
+    
     if (state == AppLifecycleState.inactive) {
       _controller.stop();
     } else if (state == AppLifecycleState.resumed && _isScanning) {
@@ -60,15 +63,20 @@ class _QRScannerPageState extends State<QRScannerPage>
     });
   }
 
+  // 3. Improvised: Updated logic to stop scanning and show result when a code is found
   void _onDetect(BarcodeCapture capture) {
-    final barcode = capture.barcodes.firstOrNull;
-    if (barcode == null || barcode.rawValue == null) return;
-
-    _controller.stop();
-    setState(() {
-      _scannedText = barcode.rawValue;
-      _isScanning = false;
-    });
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isNotEmpty) {
+      final String? code = barcodes.first.rawValue;
+      if (code != null) {
+        debugPrint('Barcode found! $code');
+        _controller.stop(); // Stop the camera
+        setState(() {
+          _scannedText = code;
+          _isScanning = false;
+        });
+      }
+    }
   }
 
   void _reset() {
@@ -118,7 +126,6 @@ class _QRScannerPageState extends State<QRScannerPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Camera scanner view
           if (_isScanning) ...[
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
@@ -130,7 +137,6 @@ class _QRScannerPageState extends State<QRScannerPage>
                       controller: _controller,
                       onDetect: _onDetect,
                     ),
-                    // Corner guides overlay
                     Center(
                       child: SizedBox(
                         width: 200,
@@ -168,8 +174,6 @@ class _QRScannerPageState extends State<QRScannerPage>
               ),
             ),
           ]
-
-          // Idle buttons
           else if (_scannedText == null) ...[
             Row(
               children: [
@@ -200,17 +204,17 @@ class _QRScannerPageState extends State<QRScannerPage>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _HowItWorksStep(
+                    const _HowItWorksStep(
                       number: '1',
                       text: 'Tap "Scan with Camera" to activate your device camera',
                     ),
                     const SizedBox(height: 8),
-                    _HowItWorksStep(
+                    const _HowItWorksStep(
                       number: '2',
                       text: 'Point it at any QR code — it decodes automatically',
                     ),
                     const SizedBox(height: 8),
-                    _HowItWorksStep(
+                    const _HowItWorksStep(
                       number: '3',
                       text: 'Copy the result or open URLs directly in your browser',
                     ),
@@ -219,8 +223,6 @@ class _QRScannerPageState extends State<QRScannerPage>
               ),
             ),
           ]
-
-          // Result view
           else ...[
             Card(
               child: Padding(
@@ -251,8 +253,7 @@ class _QRScannerPageState extends State<QRScannerPage>
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest
-                            .withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: colorScheme.outlineVariant,
@@ -289,9 +290,7 @@ class _QRScannerPageState extends State<QRScannerPage>
                           child: OutlinedButton.icon(
                             onPressed: _copyToClipboard,
                             icon: Icon(
-                              _copied
-                                  ? Icons.check_rounded
-                                  : Icons.copy_rounded,
+                              _copied ? Icons.check_rounded : Icons.copy_rounded,
                               size: 18,
                             ),
                             label: Text(_copied ? 'Copied!' : 'Copy'),
@@ -308,14 +307,10 @@ class _QRScannerPageState extends State<QRScannerPage>
                           Expanded(
                             child: FilledButton.icon(
                               onPressed: _openUrl,
-                              icon: const Icon(
-                                Icons.open_in_new_rounded,
-                                size: 18,
-                              ),
+                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
                               label: const Text('Open URL'),
                               style: FilledButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 13),
+                                padding: const EdgeInsets.symmetric(vertical: 13),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -383,7 +378,6 @@ class _ScanOptionCard extends StatelessWidget {
                 ? colorScheme.primary.withOpacity(0.4)
                 : colorScheme.outlineVariant,
             width: 1.5,
-            strokeAlign: BorderSide.strokeAlignInside,
           ),
         ),
         child: Column(
@@ -483,7 +477,7 @@ class _CornerPainter extends CustomPainter {
     const r = 8.0;
 
     final corners = [
-      Offset(0, 0),
+      const Offset(0, 0),
       Offset(size.width, 0),
       Offset(0, size.height),
       Offset(size.width, size.height),
