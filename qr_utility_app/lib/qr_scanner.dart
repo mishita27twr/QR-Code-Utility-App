@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart'; // Added import
 
 class QRScannerPage extends StatefulWidget {
   const QRScannerPage({super.key});
@@ -12,12 +13,12 @@ class QRScannerPage extends StatefulWidget {
 
 class _QRScannerPageState extends State<QRScannerPage>
     with WidgetsBindingObserver {
-  // 1. Initialize controller with updated settings
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
   );
 
+  final ImagePicker _picker = ImagePicker(); // Added ImagePicker instance
   String? _scannedText;
   bool _isScanning = false;
   bool _copied = false;
@@ -37,7 +38,6 @@ class _QRScannerPageState extends State<QRScannerPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 2. Fixed: Access isInitialized through .value in version 7.x
     if (!_controller.value.isInitialized) return;
     
     if (state == AppLifecycleState.inactive) {
@@ -63,14 +63,36 @@ class _QRScannerPageState extends State<QRScannerPage>
     });
   }
 
-  // 3. Improvised: Updated logic to stop scanning and show result when a code is found
+  // --- NEW: Function to handle Image Upload ---
+  Future<void> _uploadAndScanImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final BarcodeCapture? capture = await _controller.analyzeImage(image.path);
+      if (capture != null && capture.barcodes.isNotEmpty) {
+        final String? code = capture.barcodes.first.rawValue;
+        if (code != null) {
+          setState(() {
+            _scannedText = code;
+            _isScanning = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No QR code found in the selected image.')),
+          );
+        }
+      }
+    }
+  }
+
   void _onDetect(BarcodeCapture capture) {
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isNotEmpty) {
       final String? code = barcodes.first.rawValue;
       if (code != null) {
         debugPrint('Barcode found! $code');
-        _controller.stop(); // Stop the camera
+        _controller.stop(); 
         setState(() {
           _scannedText = code;
           _isScanning = false;
@@ -175,14 +197,24 @@ class _QRScannerPageState extends State<QRScannerPage>
             ),
           ]
           else if (_scannedText == null) ...[
+            // UPDATED: Added Row with two buttons
             Row(
               children: [
                 Expanded(
                   child: _ScanOptionCard(
                     icon: Icons.camera_alt_rounded,
-                    label: 'Scan with Camera',
+                    label: 'Scan Camera',
                     onTap: _startScanning,
                     isPrimary: true,
+                  ),
+                ),
+                const SizedBox(width: 12), // Gap between buttons
+                Expanded(
+                  child: _ScanOptionCard(
+                    icon: Icons.image_rounded,
+                    label: 'Upload Image',
+                    onTap: _uploadAndScanImage,
+                    isPrimary: false,
                   ),
                 ),
               ],
@@ -206,12 +238,12 @@ class _QRScannerPageState extends State<QRScannerPage>
                     const SizedBox(height: 12),
                     const _HowItWorksStep(
                       number: '1',
-                      text: 'Tap "Scan with Camera" to activate your device camera',
+                      text: 'Tap "Scan Camera" or "Upload Image" to start',
                     ),
                     const SizedBox(height: 8),
                     const _HowItWorksStep(
                       number: '2',
-                      text: 'Point it at any QR code — it decodes automatically',
+                      text: 'The code is decoded automatically once detected',
                     ),
                     const SizedBox(height: 8),
                     const _HowItWorksStep(
@@ -346,6 +378,7 @@ class _QRScannerPageState extends State<QRScannerPage>
   }
 }
 
+// Keeping your original helper classes exactly as they were
 class _ScanOptionCard extends StatelessWidget {
   final IconData icon;
   final String label;

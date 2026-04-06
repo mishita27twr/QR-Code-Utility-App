@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'qr_generator.dart';
 import 'qr_scanner.dart';
+import 'history_page.dart';
+import 'main.dart'; // Ensure this is imported to access themeNotifier
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,11 +17,13 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     QRGeneratorPage(),
     QRScannerPage(),
+    HistoryPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -53,6 +57,25 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              // ACTUAL TOGGLE LOGIC:
+              // If it's dark, switch to light. Otherwise, switch to dark.
+              if (themeNotifier.value == ThemeMode.dark) {
+                themeNotifier.value = ThemeMode.light;
+              } else {
+                themeNotifier.value = ThemeMode.dark;
+              }
+            },
+            icon: Icon(
+              // The icon changes based on the CURRENT brightness of the app
+              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: IndexedStack(
         index: _currentIndex,
@@ -75,6 +98,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.qr_code_scanner_rounded),
             selectedIcon: Icon(Icons.qr_code_scanner_rounded),
             label: 'Scan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_rounded),
+            selectedIcon: Icon(Icons.history_rounded),
+            label: 'History',
           ),
         ],
       ),

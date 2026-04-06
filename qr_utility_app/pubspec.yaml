@@ -17,11 +17,17 @@ dependencies:
   # QR scanner (Web + Mobile)
   mobile_scanner: ^7.2.0
 
+  image_picker: ^1.0.7
+
+  shared_preferences: ^2.2.2
+
   # Share button
   share_plus: ^7.2.0
 
   # Open URLs
   url_launcher: ^6.2.5
+
+  path_provider: ^2.1.2
 
   # iOS-style icons
   cupertino_icons: ^1.0.6

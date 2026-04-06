@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'history_service.dart'; // Ensuring history works
 
 class QRGeneratorPage extends StatefulWidget {
   const QRGeneratorPage({super.key});
@@ -23,6 +24,10 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
     setState(() {
       _generatedText = text;
     });
+    
+    // Logic for your History feature
+    HistoryService.saveItem(text);
+    
     FocusScope.of(context).unfocus();
   }
 
@@ -61,10 +66,10 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
           gapless: true,
         );
 
-        final imageSize = 300.0;
+        const imageSize = 300.0;
         final recorder = ui.PictureRecorder();
         final canvas = Canvas(recorder);
-        painter.paint(canvas, Size(imageSize, imageSize));
+        painter.paint(canvas, const Size(imageSize, imageSize));
         final picture = recorder.endRecording();
         final image = await picture.toImage(
           imageSize.toInt(),
@@ -109,7 +114,6 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Input card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -128,6 +132,8 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
                   TextField(
                     controller: _controller,
                     maxLines: 4,
+                    // ADDED THIS: Rebuilds UI so the button enables/disables while typing
+                    onChanged: (value) => setState(() {}), 
                     decoration: InputDecoration(
                       hintText: 'Enter text or paste a URL...',
                       border: OutlineInputBorder(
@@ -145,6 +151,7 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
+                          // This logic now works perfectly because of the onChanged above
                           onPressed: _controller.text.trim().isNotEmpty
                               ? _generate
                               : null,
@@ -181,10 +188,7 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // QR display
           if (hasQR) ...[
             Card(
               child: Padding(
@@ -310,16 +314,12 @@ class _QRGeneratorPageState extends State<QRGeneratorPage> {
   }
 }
 
+// Your existing _ActionButton remains the same
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _ActionButton({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -337,14 +337,7 @@ class _ActionButton extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: colorScheme.primary),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: colorScheme.onSurface,
-              ),
-            ),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: colorScheme.onSurface)),
           ],
         ),
       ),
