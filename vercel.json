@@ -10,6 +10,9 @@
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/qr_utility_app/build/web/$1" }
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
   ]
 }
