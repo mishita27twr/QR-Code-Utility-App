@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart'; // Added import
-
+import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
+import 'package:zxing2/zxing2.dart';
+import 'package:zxing2/qrcode.dart';
 class QRScannerPage extends StatefulWidget {
   const QRScannerPage({super.key});
 
@@ -39,7 +42,7 @@ class _QRScannerPageState extends State<QRScannerPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_controller.value.isInitialized) return;
-    
+
     if (state == AppLifecycleState.inactive) {
       _controller.stop();
     } else if (state == AppLifecycleState.resumed && _isScanning) {
@@ -65,34 +68,53 @@ class _QRScannerPageState extends State<QRScannerPage>
 
   // --- NEW: Function to handle Image Upload ---
   Future<void> _uploadAndScanImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      final BarcodeCapture? capture = await _controller.analyzeImage(image.path);
-      if (capture != null && capture.barcodes.isNotEmpty) {
-        final String? code = capture.barcodes.first.rawValue;
-        if (code != null) {
-          setState(() {
-            _scannedText = code;
-            _isScanning = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No QR code found in the selected image.')),
-          );
-        }
-      }
-    }
-  }
+  final XFile? imageFile =
+      await _picker.pickImage(source: ImageSource.gallery);
 
+  if (imageFile == null) return;
+
+  try {
+    final bytes = await imageFile.readAsBytes();
+
+    final image = img.decodeImage(bytes);
+
+    if (image == null) {
+      throw Exception('Unable to read image');
+    }
+
+    final luminanceSource = RGBLuminanceSource(
+      image.width,
+      image.height,
+      image.getBytes().buffer.asInt32List(),
+    );
+
+    final binaryBitmap = BinaryBitmap(
+      HybridBinarizer(luminanceSource),
+    );
+
+    final reader = QRCodeReader();
+    final result = reader.decode(binaryBitmap);
+
+    setState(() {
+      _scannedText = result.text;
+      _isScanning = false;
+      _copied = false;
+    });
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to scan QR image: $e'),
+      ),
+    );
+  }
+}
   void _onDetect(BarcodeCapture capture) {
     final List<Barcode> barcodes = capture.barcodes;
     if (barcodes.isNotEmpty) {
       final String? code = barcodes.first.rawValue;
       if (code != null) {
         debugPrint('Barcode found! $code');
-        _controller.stop(); 
+        _controller.stop();
         setState(() {
           _scannedText = code;
           _isScanning = false;
@@ -195,8 +217,7 @@ class _QRScannerPageState extends State<QRScannerPage>
                 ),
               ),
             ),
-          ]
-          else if (_scannedText == null) ...[
+          ] else if (_scannedText == null) ...[
             // UPDATED: Added Row with two buttons
             Row(
               children: [
@@ -248,14 +269,14 @@ class _QRScannerPageState extends State<QRScannerPage>
                     const SizedBox(height: 8),
                     const _HowItWorksStep(
                       number: '3',
-                      text: 'Copy the result or open URLs directly in your browser',
+                      text:
+                          'Copy the result or open URLs directly in your browser',
                     ),
                   ],
                 ),
               ),
             ),
-          ]
-          else ...[
+          ] else ...[
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -285,7 +306,8 @@ class _QRScannerPageState extends State<QRScannerPage>
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        color: colorScheme.surfaceContainerHighest
+                            .withOpacity(0.5),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: colorScheme.outlineVariant,
@@ -322,7 +344,9 @@ class _QRScannerPageState extends State<QRScannerPage>
                           child: OutlinedButton.icon(
                             onPressed: _copyToClipboard,
                             icon: Icon(
-                              _copied ? Icons.check_rounded : Icons.copy_rounded,
+                              _copied
+                                  ? Icons.check_rounded
+                                  : Icons.copy_rounded,
                               size: 18,
                             ),
                             label: Text(_copied ? 'Copied!' : 'Copy'),
@@ -339,10 +363,12 @@ class _QRScannerPageState extends State<QRScannerPage>
                           Expanded(
                             child: FilledButton.icon(
                               onPressed: _openUrl,
-                              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                              icon: const Icon(Icons.open_in_new_rounded,
+                                  size: 18),
                               label: const Text('Open URL'),
                               style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
